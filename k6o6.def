@@ -1,0 +1,48 @@
+/*
+
+memory map
+
+0000 the usual, see 6o6.def for ZP usage
+02a7 shadow sprite registers x 6
+02ae unused
+0300 Kernal stuff
+033c cassette buffer, currently unused
+0400 text screen and sprite pointers for LEDs
+0801 KIM BASIC shell
+1e00 RS-232 buffers
+2000 sprite LED images
+4000 KIM 16K addressing space
+8000 6o6 VM (including under BASIC)
+c000 6o6 harness
+c100 6o6 kernel and non-CPU emulation driver
+c800 utility routines, D-safe NMI and IRQ handlers
+ca00 DOS wedge
+cb00 KIM I/O write mirror (used by harness)
+cc00 hires colour (could also be swap space for stowing code under $d000)
+d000 I/O (RAM not used)
+e000 hires bitmap (under Kernal)
+
+title music is at $5000 and is discarded
+
+*/
+
+vmu	= $800f
+dorts	= $8003
+kimram	= $4000
+kimstack= kimram+$0100
+kimnmi	= kimram+$1ffa
+kimreset= kimram+$1ffc
+kimirq	= kimram+$1ffe
+kimio	= $cb00
+
+sshadow	= 679
+
+harness	= $c000
+kimpeek	= harness
+kimpush	= harness+3
+kimpull	= harness+6
+kimtsx	= harness+9
+kimtxs	= harness+12
+kimpoke	= harness+15
+
+driver	= $c100

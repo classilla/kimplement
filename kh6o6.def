@@ -1,0 +1,24 @@
+/* defines and optimizers for the kh6o6 harness */
+
+/* the optimizers try to speed up zero page and full RAM peek by
+   allowing inlining if the routine is small enough. */
+/* see kh6o6.asm for constraints of the memory access model, but in short,
+	KIM RAM $0000-$3fff lies in real locations $4000-$7fff.
+	peeks beyond that are UNMAPPED EXCEPT $fff8-$ffff which come from
+	KIM RAM $17f8-$17ff (real location $5ff8-$5fff). */
+/* since this has to be inlined, this does the following:
+	$fff8-$ffff: turn hb to $57
+	$4000-$fff7: return $ff (to stop the "endless BRK" issue)
+	$0000-$3fff: ora #64
+*/
+
+#define MPEEK(ptr) lda ptr+1:tax:\
+	cmp #$40:bcc *+20:\
+	cmp #$ff:bcc *+12:\
+	lda ptr:cmp #$f8:bcc *+6:\
+	lda #$57:bcs *+8:\
+	lda #255:bcc *+12:\
+	ora #%01000000:sta ptr+1:ldy #0:lda (ptr),y:stx ptr+1
+
+/* zero page has to wrap locations, so look at low byte only */
+#define ZMPEEK ldx dptr:lda $4000,x

@@ -1,0 +1,11 @@
+*.o
+*.gz
+*.arc
+*.d64
+*.prg
+*.sym
+*.tok
+_bak
+_bak/*
+NOTES
+
