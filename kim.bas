@@ -8,8 +8,8 @@
 106 poke2040+x/2,128:poke54273,128:poke53287+x/2,0:poke53249+x,50:e=e+17:next
 108 poke53264,0:poke53269,255:poke16625,0:d=peek(2039):ifd<8thend=8
 110 print"{sqqq}The Incredible KIMplement for the C64"
-120 print"1.0 * www.floodgap.com/retrobits/kim-1":print
-130 print"Emulator code copyright (C) 2002-2024,"
+120 print"1.1 * www.floodgap.com/retrobits/kim-1":print
+130 print"Emulator code copyright (C) 2002-2026,"
 140 print"Cameron Kaiser. All rights reserved."
 150 print"KIM-1 ROM code copyright (C) 1975, MOS":print"Technology, Inc.{q}"
 151 print"Press Commodore key for options."

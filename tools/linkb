@@ -8,7 +8,7 @@
 # self-contained runnable "archive." In the spirit of Robert Stoerrle's
 # MODLink. Files are oriented for the C64.
 #
-# This program is (C)2006, 2022 Cameron Kaiser. All rights reserved.
+# This program is (C)2006, 2025 Cameron Kaiser. All rights reserved.
 # This program is distributed under the Floodgap Free Software License.
 #
 ###############################################################################
@@ -21,7 +21,7 @@ BEGIN { $^H |= 0x00000008 unless ($] < 5.006); } # use bytes
 	'big' => 'allow file to exceed 50K',
 	'debug' => 'debug flags',
 	);
-%args = ('version' => "*1.5.0",
+%args = ('version' => "*1.6.0",
 	'ofile' => 'apkg.prg',
 	'colwarn' => 'no',
 	'big' => 'no',
@@ -29,7 +29,7 @@ BEGIN { $^H |= 0x00000008 unless ($] < 5.006); } # use bytes
 	);
 
 warn <<"EOF";
-Commodore 64 BASIC Linker for Perl (c)2006, 2022 Cameron Kaiser.
+Commodore 64 BASIC Linker for Perl (c)2006, 2025 Cameron Kaiser.
 Distributed under the Floodgap Free Software License; see documentation.
 Use $0 --version for version string and help information.
 
@@ -247,6 +247,15 @@ print STDOUT "Creating runnable relocator.\n";
 
 $st1l = &genlen(\@stage1); # length of stage 1
 $stbk = &genlen(\@backwalker); # length of backwalker
+
+# if the length of BASIC text is less than the size of stage 1, we will
+# end up munging the program, so pad it out.
+if ($eol < $st1l+1) {
+	$diff = (($st1l+1) - $eol);
+	print STDOUT "Stage 1 length $st1l bytes; padding BASIC text by $diff bytes.\n";
+	$eol += $diff;
+	$k .= "\0" x $diff;
+}
 $sas2 = 2049+$eol+$st1l+$stbk; # starting address of stage 2
 $rolend = 0;
 # (rolend is our rolling end-of-routine address, see stage 3-4)

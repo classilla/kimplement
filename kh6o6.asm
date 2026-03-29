@@ -28,34 +28,6 @@
 
 	; poke .a into location indicated by dptr
 
-#if(0)
-mpoke	sta hhold1
-	lda dptr+1
-	sta hhold0
-	tax
-	cmp #$18
-	bcc mpokeok
-	cmp #$40		; unmapped space
-	bcs mpokeno
-	cmp #$20
-	bcs mpokeok		; to support $2xxx memory expansion
-mpokeno	lda hhold1
-	;jmp mpokdun		; can't write to ROM, even emulated ;-)
-	rts			; never changed dptr, needn't restore it
-mpokeok	ora #%01000000
-	sta dptr+1
-	lda hhold1
-	ldy #0
-	sta (dptr),y
-	cpx #$17		; was effective address in i/o range?
-	bne mpoknio		; no
-	ldx #>kimio		; yes, save a copy to kim i/o mirror
-	stx dptr+1		; (would rather handle i/o elsewhere)
-	sta (dptr),y
-mpoknio	ldx hhold0
-	stx dptr+1
-mpokdun	rts
-#else
 mpoke	tax
 	lda dptr+1
 	cmp #$18		; below ROM
@@ -78,7 +50,7 @@ mpokeok	sta hhold0
 	sta (dptr),y
 mpoknio	stx dptr+1
 mpokdun	rts
-#endif
+/* also look at ZMPOKE in kk6o6.def for the optimized zero page store */
 
 	; load .a with location indicated by dptr (y should be zeroed)
 

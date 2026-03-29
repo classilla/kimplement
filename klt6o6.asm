@@ -1,5 +1,5 @@
 ; kim titler and utilities, converted from handcoded epyx fastload data
-; copyright 2002-2024 cameron kaiser, all rights reserved
+; copyright 2002-2026 cameron kaiser, all rights reserved
 ; floodgap free software license
 
 #include "k6o6.def"
@@ -17,13 +17,6 @@
 
 titler	ldx #$00	; first setup colour
 
-lup0	lda #$10
-	sta $cc00,x
-	sta $cd00,x
-	sta $ce00,x
-	sta $cf00,x
-	inx
-	bne lup0
 	lda #$00	; turn hi-res on
 	sta $d020
 	sta $d021

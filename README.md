@@ -2,13 +2,13 @@
 
 [Another Old VCR Artifact For A New Generation!](http://oldvcr.blogspot.com/)
 
-Copyright 2002-2024 Cameron Kaiser.  
+Copyright 2002-2026 Cameron Kaiser.  
 All rights reserved.  
 Released under the Floodgap Free Software License.
 
 ## What it is
 
-This is the source code for the Incredible KIMplement, an emulator of the [MOS/Commodore KIM-1](http://www.floodgap.com/retrobits/kim-1/) that runs on an unexpanded Commodore 64, or Commodore 128 in 64 mode. It provides a 16K address space, LED and TTY support (including over your C64's _actual_ user port at 300bps), debugging options, and built-in ROMs. It can also load and save memory dumps to disk.
+This is the source code for the Incredible KIMplement, an emulator of the [MOS/Commodore KIM-1](http://www.floodgap.com/retrobits/kim-1/) that runs on an unexpanded Commodore 64, or Commodore 128 in 64 mode. It provides 16K of RAM, LED and TTY support (including over your C64's _actual_ user port at 300bps), debugging options, and built-in ROMs. It can also load and save memory dumps to disk.
 
 The 6502-on-6502 virtualization is provided by a vendored copy of **6o6**, which is [a separate project](https://github.com/classilla/6o6).
 

@@ -1,5 +1,5 @@
-; "6o6" 6502-on-6502 virtualizer 1.0
-; copyright 2002-2024 cameron kaiser -- all rights reserved
+; "6o6" 6502-on-6502 virtualizer 1.1
+; copyright 2002-2026 cameron kaiser -- all rights reserved
 ; https://github.com/classilla/6o6
 ; https://oldvcr.blogspot.com/
 ;
@@ -44,16 +44,24 @@
 ; #define SEI_IS_ILLEGAL 1
 ; if sei should just be ignored, then
 ; #define SEI_IS_NOP 1
+; and if opplp should have the I flag filtered, then
+; #define PLP_FILTER_IRQ 1
 ; on the other hand, by default BRK does not set the I flag (no need to since
 ; simulated IRQs are the responsibility of your kernel). if you want this, then
 ; #define ACCURATE_IRQ 1
-; you probably don't want this with the SEI_IS_* options at the same time!
+; you probably don't want this together with the SEI_* or PLP_* options!
 ; this also affects how the I flag is handled by the doirq utility routine.
 ; 
 ; finally, if you are on a non-Commodore computer where the starting address
 ; is specified in some other fashion, or you're inlining it into another file,
 ; then
 ; #define NO_SADDR_IN_FILE 1
+
+#ifdef ACCURATE_IRQ
+#ifdef PLP_FILTER_IRQ
+#error ACCURATE_IRQ and PLP_FILTER_IRQ are mutually exclusive, see docs
+#endif
+#endif
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; harness and memory configuration
@@ -126,6 +134,11 @@ mpoke	= mpeek+15
 #define ZMPEEK		lda #0:sta dptr+1:jsr mpeek
 #endif
 
+#ifndef ZMPOKE
+#echo WARNING missing ZMPOKE macro, substituting harness call
+#define ZMPOKE		ldy #0:sty dptr+1:jsr mpoke
+#endif
+
 ; massage options for convenience
 #ifndef HELPINGS
 #define HELPINGS 0
@@ -192,20 +205,20 @@ mpoke	= mpeek+15
 
 #define IMMPEEK	MPEEK(dptr):sta IMMPTR
 #define ZMMPEEK ZMPEEK:sta IMMPTR
+/* if we're following with an mpoke, then we must set the whole pointer */
 #define	ZPWORK	MPEEK(dptr):sta hold0
+#define ZPPWORK	ZMPEEK:sta hold0
 #define	ARGIMM	INCPC1:FETCH:sta IMMPTR
 #define	ARGZP	INCPC1:FETCH:sta dptr
 #define	ARGZPF	ARGZP:ZMMPEEK
-/* if we're following with an mpoke, then we must set the whole pointer */
-#define ARGZPP	ARGZP:lda #0:sta dptr+1
-#define	ARGZPM	ARGZPP:ZPWORK
+/* for future expansion? */
+#define ARGZPP	ARGZP
+#define	ARGZPM	ARGZPP:ZPPWORK
 /* zero page wraps, which makes indexed x and y really easy */
-#define	ARGZPX	INCPC1:FETCH:clc:adc xreg:\
-		sta dptr:lda #0:sta dptr+1
+#define	ARGZPX	INCPC1:FETCH:clc:adc xreg:sta dptr
 #define	ARGZPXF	ARGZPX:ZMMPEEK
-#define	ARGZPXM	ARGZPX:ZPWORK
-#define	ARGZPY	INCPC1:FETCH:clc:adc yreg:\
-		sta dptr:lda #0:sta dptr+1
+#define	ARGZPXM	ARGZPX:ZPPWORK
+#define	ARGZPY	INCPC1:FETCH:clc:adc yreg:sta dptr
 #define	ARGZPYF	ARGZPY:ZMMPEEK
 #define ARGABS	INCPC1:FETCH:sta hold0:INCPC1:FETCH:sta dptr+1:\
 		lda hold0:sta dptr
@@ -242,17 +255,18 @@ mpoke	= mpeek+15
 ;          RTS at the end like a real routine would do)
 ; +6  irq (sets up stack for an IRQ or NMI, but you still need to set the
 ;          new PC)
-; +9  future expansion
+; +9  rti (your emulated kernel routines can call this to emulate a temrinal
+;          RTI at the end like a real IRQ or BRK handler would do)
 ; +12 future expansion
 ; +15  execop (runs a single instruction or extra helpings group in the VM)
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	jmp bailout
-	; both of these are at the end
+	; all of these are at the end
 	jmp dorts
 	jmp doirq
+	jmp dorti
 	; for future expansion
-	nop:nop:nop
 	nop:nop:nop
 	; execop follows
 
@@ -276,7 +290,6 @@ execopp	FETCH
 	sty execopg+1
 	ldy vectabh,x
 	sty execopg+2
-	ldy #0
 execopg	jmp $0000
 
 	; immediate abandon ship (usually called by memory access drivers)
@@ -441,7 +454,7 @@ vectabh	.byt	>opbrk,>opora01,>opbad,>opbad
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 #ifndef UDI_IS_ILLEGAL
-	; 'user-defined' interrupt -- mostly for debugging
+	; 'user-defined' interrupt for hypercalls
 	; op-code $42 (replaces JAM and WDM)
 	; load x and y with your parameters and execute for an
 	; immediate return
@@ -537,6 +550,12 @@ opasl0a	GETP
 	PUTP
 	EXITEH
 opasl06	ARGZPM
+ipasl06	GETP
+	asl hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 ipaslxx	GETP
 	asl hold0
 	PUTP
@@ -544,7 +563,7 @@ ipaslxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 opasl16	ARGZPXM
-	jmp ipaslxx
+	jmp ipasl06
 opasl0e	ARGABSM
 	jmp ipaslxx
 opasl1e	ARGABXM
@@ -726,6 +745,12 @@ opcpycc	ARGABSF
 	jmp jpcpyc0
 
 opdecc6	ARGZPM
+ipdecc6	GETP
+	dec hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 ipdecxx	GETP
 	dec hold0
 	PUTP
@@ -733,7 +758,7 @@ ipdecxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 opdecd6	ARGZPXM
-	jmp ipdecxx
+	jmp ipdecc6
 opdecce	ARGABSM
 	jmp ipdecxx
 opdecde	ARGABXM
@@ -786,6 +811,12 @@ opeor51	ARGINYF
 	jmp jpeor49
 
 opince6	ARGZPM
+ipince6	GETP
+	inc hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 ipincxx	GETP
 	inc hold0
 	PUTP
@@ -793,7 +824,7 @@ ipincxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 opincf6	ARGZPXM
-	jmp ipincxx
+	jmp ipince6
 opincee	ARGABSM
 	jmp ipincxx
 opincfe	ARGABXM
@@ -958,6 +989,12 @@ oplsr4a	GETP
 	PUTP
 	EXITEH
 oplsr46	ARGZPM
+iplsr46	GETP
+	lsr hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 iplsrxx	GETP
 	lsr hold0
 	PUTP
@@ -965,7 +1002,7 @@ iplsrxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 oplsr56	ARGZPXM
-	jmp iplsrxx
+	jmp iplsr46
 oplsr4e	ARGABSM
 	jmp iplsrxx
 oplsr5e	ARGABXM
@@ -1027,6 +1064,10 @@ opplaf	lda #$00	; set NV
 	EXITIMP
 
 opplp	jsr spull
+#ifdef PLP_FILTER_IRQ
+	;     NV-BDIZC
+	and #%11111011	; mask off I-flag
+#endif
 	sta preg
 	EXITIMP
 
@@ -1035,6 +1076,12 @@ oprol2a	GETP
 	PUTP
 	EXITEH
 oprol26	ARGZPM
+iprol26	GETP
+	rol hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 iprolxx	GETP
 	rol hold0
 	PUTP
@@ -1042,7 +1089,7 @@ iprolxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 oprol36	ARGZPXM
-	jmp iprolxx
+	jmp iprol26
 oprol2e	ARGABSM
 	jmp iprolxx
 oprol3e	ARGABXM
@@ -1053,6 +1100,12 @@ opror6a	GETP
 	PUTP
 	EXITEH
 opror66	ARGZPM
+ipror66	GETP
+	ror hold0
+	PUTP
+	lda hold0
+	ZMPOKE		; last location still in dptr
+	EXITIMP
 iprorxx	GETP
 	ror hold0
 	PUTP
@@ -1060,7 +1113,7 @@ iprorxx	GETP
 	jsr mpoke	; last location still in dptr
 	EXITIMP
 opror76	ARGZPXM
-	jmp iprorxx
+	jmp ipror66
 opror6e	ARGABSM
 	jmp iprorxx
 opror7e	ARGABXM
@@ -1120,11 +1173,11 @@ opsbcf1	ARGINYF
 
 opsta85	ARGZPP
 	GETA
-	jsr mpoke
+	ZMPOKE
 	EXITIMP
 opsta95	ARGZPX
 	GETA
-	jsr mpoke
+	ZMPOKE
 	EXITIMP
 opsta8d	ARGABS
 	GETA
@@ -1148,20 +1201,26 @@ opsta91	ARGINDY
 	EXITIMP
 
 opstx86	ARGZPP
+ipstx86	GETXA
+	ZMPOKE
+	EXITIMP
 ipstxxx	GETXA
 	jsr mpoke
 	EXITIMP
 opstx96	ARGZPY
-	jmp ipstxxx
+	jmp ipstx86
 opstx8e	ARGABS
 	jmp ipstxxx
 
 opsty84	ARGZPP
+ipsty84	GETYA
+	ZMPOKE
+	EXITIMP
 ipstyxx	GETYA
 	jsr mpoke
 	EXITIMP
 opsty94	ARGZPX
-	jmp ipstyxx
+	jmp ipsty84
 opsty8c	ARGABS
 	jmp ipstyxx
 
@@ -1223,6 +1282,18 @@ doirq
 	jsr spush
 	lda #R_OK
 	rts
+
+	; convenience function for returning from an IRQ (like, say, if you
+	; want your kernel to handle BRKs as syscalls). this may fault if the
+	; stack would underflow (depending on your harness), which you may
+	; choose to handle as normal termination.
+dorti
+	; this can potentially fault
+#ifndef FAULTLESS
+	tsx
+	stx abandon
+#endif
+	jmp oprti
 
 	; convenience function for returns from a JSR to an emulated routine.
 	; this may fault if the stack would underflow (depending on your

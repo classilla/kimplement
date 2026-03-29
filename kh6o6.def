@@ -22,3 +22,6 @@
 
 /* zero page has to wrap locations, so look at low byte only */
 #define ZMPEEK ldx dptr:lda $4000,x
+
+#define ZMPOKE ldx dptr:sta $4000,x
+

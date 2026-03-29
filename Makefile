@@ -50,5 +50,5 @@ kim.arc: k6o6.o kh6o6.o km6o6.o klt6o6.o kd6o6.o kim.tok data/6530-2.rom data/65
 		data/tron2.mus \
 		data/6530-3.rom data/6530-2.rom \
 		k6o6.o kh6o6.o km6o6.o klt6o6.o kd6o6.o \
-		data/kim.bmp 
+		data/kim.col data/kim.bmp
 
